@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Looks like you made it!</title>
+</head>
+<body>
+    <h1>Hey!, If you are seeing this message it looks like this port (<span id='port'></span>) isn't blocked by your firewall! Congrats!</h1>
+</body>
+</html>
+
+<script>
+
+document.getElementById('port').innerHTML = window.location.port;
+document.title = window.location.port + " : " + document.title;
+
+</script>

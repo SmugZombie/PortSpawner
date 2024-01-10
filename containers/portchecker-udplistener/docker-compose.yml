@@ -1,0 +1,10 @@
+version: '3'
+services:
+  udp-listener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      UDP_PORT: 95
+    ports:
+      - "95:95/udp"
