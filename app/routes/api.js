@@ -1,12 +1,8 @@
 const express = require('express');
 const Docker = require('dockerode');
 const docker = new Docker();
-
-//const config = require('../config/config');
-//const Auth = require('../lib/auth');
-//const Audit = require('../lib/audit');
-//const { Users, Limits } = require('../data/db');
 const router = express.Router();
+const config = require('../config/config');
 module.exports = router;
 
 const portBlacklist = [22, 25, 465, 443, 80]; // Add more ports as needed
@@ -15,33 +11,55 @@ function isIntegerInRange(input) {
     var number = parseInt(input, 10);
     return !isNaN(number) && Number.isInteger(number) && number >= 0 && number <= 65535;
 }
+
+async function getCurrentContainerCount() {
+  const containers = await docker.listContainers({ all: true });
+  //console.log(containers, containers.length);
+  return containers.length;
+}
   
-router.post('/startContainer', async (req, res) => {
+router.post('/startContainer/:type', async (req, res) => {
     try {
+	const type = req.params.type;
         const { port } = req.body;
 
-        if(!isIntegerInRange(port)){
-        res.status(400).json({ error: 'Port must be an integer within 1-65535' });
-        return;
+        if(await getCurrentContainerCount() > config.defaultLimits.containerLimit){
+          res.status(400).json({ error: 'Too many open ports currently. Close a few or try again later' });
+          return;
         }
 
-        if (portBlacklist.includes(port)) {
+        if(!isIntegerInRange(port)){
+          res.status(400).json({ error: 'Port must be an integer within 1-65535' });
+          return;
+        }
+
+        if (portBlacklist.includes(port) || config.restrictions.restrictedPorts.includes(port)) {
         res.status(400).json({ error: 'Port is in the blacklist and cannot be exposed.' });
         return;
         }
         
+	let imagename = "";
+	if(type.toLowerCase() == "udp"){
+		imagename = "udplistener";
+		baseport = port;
+	}else{
+		imagename = "tcplistener";
+		baseport = 80;
+	}
+
+
         // Create a Docker container with the specified port exposed
         const container = await docker.createContainer({
-        Image: 'my-nginx-hello-world', // Replace with your Docker image name
-        ENV: [],
-        HostConfig: {
-            PortBindings: {
-            [`80/tcp`]: [{ HostPort: `${port}` }],
-            },
-        },
-        ExposedPorts: {
-        [`${port}/tcp`]: {}
-        },
+	        Image: imagename, // Replace with your Docker image name
+        	ENV: [`EXT_PORT=${port}`],
+        	HostConfig: {
+            		PortBindings: {
+            			[`80/${type}`]: [{ HostPort: `${port}` }],
+            		},
+        	},
+        	ExposedPorts: {
+        		[`${port}/${type}`]: {}
+        	},
         });
 
         // Start the container

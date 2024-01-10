@@ -1,0 +1,219 @@
+<head>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+</head>
+
+<table class='table'>
+	<thead>
+		<tr> <th>Container Id</th> <th>Exposed Port</th> <th>Accessible</th> <th></th></tr>
+	</thead>
+	<tbody id='containers_table'>
+	</tbody>
+</table>
+
+<hr> 
+<form>
+	<input placeholder='port (81,100,10000)' type='' id='newPortInput' />
+	<button onclick='addPort()' type='button' id='newPortButton'>Spin up new TCP Port</button>
+	<button onclick='addPort(false, 1)' type='button' id='newPortButton2'>Spin up new UDP Port</button>
+</form>
+* Open ports will automatically close after 5 minutes from opening.
+<hr>
+Using this UDP listener you can troubleshoot UDP connectivity by sending a message to the port from your local machine. More info <a href='udp.html'>here</a>
+<br>
+<iframe id="udpmessages" src='/terminal.html' style='border: 0px; width: 700px; height: 400px; '></iframe>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script>
+
+window.restrictedPorts = [
+  1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 
+  79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 
+  135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 
+  531, 532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 
+  1720, 1723, 2049, 3659, 4045, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 
+  6668, 6669, 6697, 10080
+];
+
+function fetchContainers(){
+
+  let containersTable = "";
+
+  var settings = {
+    "url": "/api/listContainers",
+    "method": "GET",
+    "timeout": 0,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "data": JSON.stringify({
+      "port": 28
+    }),
+  };
+
+  $.ajax(settings).done(function (response) {
+    containers = response;
+    containerCount = containers.length;
+
+    for(containerId in containers){
+    let container = containers[containerId];
+    let exposed = container.exposedPorts;
+    let type = 'tcp';
+    const publicPorts = [];
+
+    exposed.forEach(item => {
+      if (item.hostPort && item.hostPort.PublicPort) {
+          publicPorts.push(item.hostPort.PublicPort);
+      }
+    });
+
+    console.log(JSON.stringify(exposed));
+
+    if(JSON.stringify(exposed).includes('udp')){
+	console.log('udp');
+	type = 'udp';
+}
+
+
+    let container_id = container.id;
+    if(!publicPorts.length){ 
+      publicPorts[0] = "broken container"; 
+      containerCount --;
+      //containersTable += "<tr><td>"+container_id+"</td><td>Uhoh</td><td></td><td></td></tr>";
+    }else{
+
+      if(type == "udp"){
+	containersTable += "<tr><td>"+container_id+"</td><td><a href='" + window.location.origin + ":"+publicPorts[0]+"' target='_blank'>" + publicPorts[0] + "</a></td><td id=''>UDP Only [<a href='' target='_blank'>?</a>]</td><td><button class='btn btn-danger' onclick='closePort(\""+container_id+"\")'>Close Port</button></td></tr>";
+      }else{
+      	containersTable += "<tr><td>"+container_id+"</td><td><a href='" + window.location.origin + ":"+publicPorts[0]+"' target='_blank'>" + publicPorts[0] + "</a></td><td id='accessible_"+container_id+"'>Checking...</td><td><button class='btn btn-danger' onclick='closePort(\""+container_id+"\")'>Close Port</button></td></tr>";
+      	checkFileExistence(window.location.origin + ":" + publicPorts[0], 'favicon.png').then(fileExists => { if(fileExists){ $("#accessible_"+container_id).html("Yes"); } })
+      }
+    }
+
+  }
+
+  if(!containerCount){
+    containersTable += "<tr><td colspan='4'><center>No Open Ports</center></td></tr>";
+  }
+
+  $("#containers_table").html(containersTable);
+
+    console.log(response);
+  });
+
+}
+
+function isIntegerInRange(input) {
+    var number = parseInt(input, 10);
+    return !isNaN(number) && Number.isInteger(number) && number >= 0 && number <= 65535;
+}
+
+function addPort(checked=false,type=0) {
+    if(!checked) {
+        checkExist(document.getElementById("newPortInput").value, type);
+        return;
+    }
+
+    if(type == 0){ type = "tcp"; }else{ type = "udp"; }
+
+    let port = document.getElementById("newPortInput").value;
+
+    if(!isIntegerInRange(port)) {
+        alert("Port must be an integer within 0-65535");
+        return;
+    }
+
+    var settings = {
+        "url": "/api/startContainer/" + type,
+        "method": "POST",
+        "timeout": 0,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "data": JSON.stringify({
+            "port": port
+        }),
+    };
+
+    $.ajax(settings)
+        .done(function (response) {
+            $("#newPortInput").val(""); // fixed the selector here
+            fetchContainers();
+            console.log(response);
+        })
+        .fail(function (jqXHR, textStatus, errorThrown) {
+            // Display an alert with the error information
+            console.error(jqXHR.responseJSON.error)
+            alert("Error: " + jqXHR.status + " - " + jqXHR.responseJSON.error);
+        });
+}
+
+function closePort(id){
+  var settings = {
+    "url": "/api/killContainer/" + id,
+    "method": "DELETE",
+    "timeout": 0,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+  };
+  $.ajax(settings).done(function (response) {
+    console.log(response);
+    fetchContainers();
+  });
+}
+
+function checkExist(port, type){
+
+  if(!isIntegerInRange(port)) {
+      alert("Port must be an integer within 0-65535");
+      return;
+  }
+
+  if(parseInt(port) in window.restrictedPorts){
+    alert("Port is blacklisted by browser standards");
+    return;
+  }
+
+  var settings = {
+    "url": "/api/checkPort/" + port,
+    "method": "GET",
+    "timeout": 0,
+    "headers": {
+      "Content-Type": "application/json"
+    },            
+  };
+
+  $.ajax(settings).done(function (response) {
+    console.log(response);
+    if(!response.isPortExposed){
+      addPort(true, type);
+    }else{
+      alert("This port is already listening");
+    }
+  });
+
+}
+
+async function checkFileExistence(server, file) {
+  const fileUrl = `${server}/${file}`;
+  try {
+    const response = await fetch(fileUrl, { method: 'HEAD' });
+
+    if (response.status === 200) {
+      return true; // The file exists if the response status is 200 OK.
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.error('An error occurred:', error);
+    return false; // An error occurred, so we assume the file does not exist.
+  }
+}
+
+
+fetchContainers();
+setInterval(function () { fetchContainers(); }, 5000);
+
+</script>
