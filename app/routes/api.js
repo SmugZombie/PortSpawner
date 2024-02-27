@@ -3,6 +3,7 @@ const Docker = require('dockerode');
 const docker = new Docker();
 const router = express.Router();
 const config = require('../config/config');
+const axios = require('axios');
 module.exports = router;
 
 const portBlacklist = [22, 25, 465, 443, 80]; // Add more ports as needed
@@ -10,6 +11,29 @@ const portBlacklist = [22, 25, 465, 443, 80]; // Add more ports as needed
 function isIntegerInRange(input) {
     var number = parseInt(input, 10);
     return !isNaN(number) && Number.isInteger(number) && number >= 0 && number <= 65535;
+}
+
+async function sendMessage(message){
+
+const now = new Date();
+const timestamp = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+//console.log(timestamp);
+
+
+let config = {
+  method: 'get',
+  url: 'http://port.overflow.wtf/message?message=' + timestamp + " - " + message,
+};
+
+axios.request(config)
+.then((response) => {
+  console.log(JSON.stringify(response.data));
+})
+.catch((error) => {
+  console.log(error);
+});
+
+
 }
 
 async function getCurrentContainerCount() {
@@ -64,9 +88,10 @@ router.post('/startContainer/:type', async (req, res) => {
 
         // Start the container
         await container.start();
-
+	sendMessage(`New port is listening:  ${port}/${type}`);
         // Set a timeout to stop the container after 5 minutes
         setTimeout(async () => {
+	sendMessage(`Closing port: ${port}/${type} - Reason: Timeout`);	
         await container.stop();
         await container.remove();
         }, 5 * 60 * 1000);
@@ -133,7 +158,8 @@ router.get('/checkPort/:port', async (req, res) => {
 router.delete('/killContainer/:id', async (req, res) => {
     try {
         const { id } = req.params;
-
+	//sendMessage(`Closing port: ${port}/${type} - Reason: Closed by User`);
+	sendMessage(`Closing Port - Reason: Closed by User`);
         const container = docker.getContainer(id);
         await container.stop();
         await container.remove();

@@ -2,7 +2,6 @@ import socket
 import requests
 import logging
 import os
-import datetime  # Import the datetime module
 
 UDP_IP = "0.0.0.0"  # Listen on all available network interfaces
 UDP_PORT = 80  # Change this to your desired UDP port
@@ -18,18 +17,16 @@ sock.bind((UDP_IP, int(UDP_PORT)))
 
 logging.info(f"Listening on UDP port {UDP_PORT}...")
 
-timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-message = str(timestamp) + " - New UDP listener available at " + EXT_PORT
+message = "New UDP listener available at " + EXT_PORT
 response = requests.get(API_URL + "?message=" + message)
 
 while True:
     data, addr = sock.recvfrom(1024)
     message = data.decode('utf-8')
-    timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")  # Get current UTC timestamp
-    logging.info(f"Received message at {timestamp}: {message} from {addr}")
+    logging.info(f"Received message: {message} from {addr}")
+    #message = "Received message: {" + message + "} from {" + str(addr) + "}"
     masked_addr = '.'.join(addr[0].split('.')[:2]) + ".x.x"
-    message = f"{timestamp} - Received message: {{ {message} }} from {{ {str(masked_addr)} }} to port {{ {EXT_PORT} }}"
-    
+    message =  "Received message: {" + message + "} from {" + str(masked_addr) + "} to port {" + str(EXT_PORT) + "}"
     # Forward the data to the API endpoint
     try:
         response = requests.get(API_URL + "?message=" + message)

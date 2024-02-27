@@ -32,7 +32,7 @@ void 0!==c?e&&"set"in e&&void 0!==(d=e.set(a,c,b))?d:a[b]=c:e&&"get"in e&&null!=
 <body>
     <div id="wrapper">
         <center>
-            <textarea id="terminal" class="command-output" cols="91" rows="25" spellcheck="false">Loading... </textarea><input type='text' id='commander' style='display:none;' />
+            <textarea id="terminal" readonly class="command-output" cols="91" rows="25" spellcheck="false">Loading... </textarea><input type='text' id='commander' style='display:none;' />
         </center>
     </div>
 </body>
@@ -44,6 +44,15 @@ function moveCursorToEnd(){ checkTextareaHeight(); terminal.focus(); terminal.se
 function checkTextareaHeight(){ var terminal = document.getElementById("terminal"); if(terminal.selectionStart == terminal.selectionEnd) { terminal.scrollTop = terminal.scrollHeight; } }
 
 document.getElementById("terminal").scrollTop = document.getElementById("terminal").scrollHeight
+
+function scrollToBottom() {
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function updateTerminal(message){
+	terminal.value += message + "\n";
+	scrollToBottom();
+}
 
 terminal.focus();
 terminal.setSelectionRange(terminal.value.length, terminal.value.length);
@@ -58,15 +67,17 @@ function handleMessage(event) {
   //const message = document.createElement('p');
   //message.textContent = event.data;
   //messages.appendChild(message);
-  terminal.value = terminal.value + event.data + "\n";
+  //terminal.value = terminal.value + event.data + "\n";
+  updateTerminal(event.data);
 }
 
 // WebSocket on open event (connection established)
 socket.addEventListener('open', (event) => {
   console.log('WebSocket connection established.');
 
-  terminal.value = "UDP Listener Connected\nWaiting for new data...\n\n";
+  //terminal.value += "\n\nUDP Listener Connected\nWaiting for new data...\n\n";
   // You can perform any actions you want when a client connects here
+  updateTerminal("UDP Listener Connected\nWaiting for new data...\n");
 });
 
 // WebSocket on message event (message received)
@@ -75,7 +86,8 @@ socket.addEventListener('message', handleMessage);
 // WebSocket on close event (connection closed)
 socket.addEventListener('close', (event) => {
   console.log('WebSocket connection closed.');
-  terminal.value = terminal.value + "\nUDP Listener Disconnected.. Please refresh the page."
+  //terminal.value = terminal.value + "\nUDP Listener Disconnected.. Please refresh the page."
+  updateTerminal("\nUDP Listener Disconnected..\n");
   // You can perform any actions you want when a client disconnects here
   setTimeout(connectWebSocket, 3000);
 });
@@ -83,7 +95,8 @@ socket.addEventListener('close', (event) => {
 // WebSocket on error event (error occurred)
 socket.addEventListener('error', (error) => {
   console.error('WebSocket error:', error);
-  terminal.value = terminal.value + "\nUDP Listener Disconnected.. Please refresh the page."
+  //terminal.value = terminal.value + "\nUDP Listener Disconnected.. Please refresh the page."
+  updateTerminal("\nUDP Listener Disconnected..\n");
 });
 
 }

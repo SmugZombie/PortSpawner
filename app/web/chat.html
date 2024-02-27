@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Chat</title>
+</head>
+<body>
+    <h1>WebSocket Chat</h1>
+    <div id="messages"></div>
+    
+    <script>
+        const socket = new WebSocket(`ws://${window.location.host}`);
+        const messages = document.getElementById('messages');
+
+        socket.addEventListener('message', (event) => {
+            const message = document.createElement('p');
+            message.textContent = event.data;
+            messages.appendChild(message);
+        });
+
+        const sendMessage = () => {
+            const input = prompt('Enter a message:');
+            if (input) {
+                socket.send(input);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            sendMessage();
+        });
+    </script>
+</body>
+</html>
